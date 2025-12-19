@@ -80,7 +80,7 @@ agent = create_agent(
 conversation_history=[]
 def ask_question(user_input:str):
     conversation_history.append(HumanMessage(content=user_input))
-    global conversation_history
+    #global conversation_history
     response=agent.invoke({"messages":conversation_history})
     text_output=""
     if isinstance(response,dict) and "messages" in response:
@@ -104,4 +104,5 @@ def ask_question(user_input:str):
 if __name__ == "__main__":
     query ="ok tell me about the option 1"
     result = asked_question(query)
+
     print(f"Response: {result}")

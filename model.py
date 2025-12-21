@@ -261,6 +261,7 @@ II. RESPONSE RULES
 - If user asks anything except our domain , reply politely that you can only answer with the queries related to hotels.
 - if user says bye or exit or clear or any related word then clear your memory,history and you have to start as new conversation
 - if the user has intent to book any hotel or deal and user says book it now or any related word then reply that i cant book directly right now you can visit www.ghumloo.com to book this right now.
+- if the user says book now or any related words which has intention to book hotel or deal then reply politely that currenntly i can only give information , to confirm your booking please visit www.ghumloo.com
 III. ERROR HANDLIN
 
 - If dates missing: "Please provide check-in and check-out dates (YYYY-MM-DD)"
@@ -336,3 +337,4 @@ if __name__ == "__main__":
     query = ""
     result = ask_question(query)
     print(f"Response: {result}")
+

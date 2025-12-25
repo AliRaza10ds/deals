@@ -19,7 +19,10 @@ deals_api="https://apideals.ghumloo.com/api/categoryWiseDeals?&min=0&max=2000&pr
 get_deals_api="https://apideals.ghumloo.com/api/getOffers/"
 deals_memory = {}  
 last_searched_deal_id = None  
-conversation_history = []
+supervisor_history = []
+hotel_history = []
+deals_history = []
+
 
 @tool
 def get_deals(user_query: str):
@@ -217,7 +220,7 @@ def asked_question(user_input:str):
 MAX_HISTORY = 5
 
 def deals_ask_question(user_question: str):
-    global conversation_history, deals_memory, last_searched_deal_id
+    global deals_history, deals_memory, last_searched_deal_id
 
     reference_words = [
         "iski", "iska", "iske",
@@ -234,13 +237,13 @@ def deals_ask_question(user_question: str):
         user_question = f"{user_question} [deal_id:{deal_id_ref}]"
         
 
-    conversation_history.append(HumanMessage(content=user_question))
+    deals_history.append(HumanMessage(content=user_question))
 
-    if len(conversation_history) > MAX_HISTORY:
-        conversation_history = conversation_history[-MAX_HISTORY:]
+    if len(deals_history) > MAX_HISTORY:
+        deals_history = deals_history[-MAX_HISTORY:]
 
     try:
-        response = deals_agent.invoke({"messages": conversation_history})
+        response = deals_agent.invoke({"messages": deals_history})
         text_output = ""
         if isinstance(response, dict) and "messages" in response:
             last_msg = response["messages"][-1]
@@ -255,10 +258,10 @@ def deals_ask_question(user_question: str):
         else:
             text_output = str(response)
     
-        conversation_history.append(AIMessage(content=text_output))
+        deals_history.append(AIMessage(content=text_output))
 
-        if len(conversation_history) > MAX_HISTORY:
-            conversation_history = conversation_history[-MAX_HISTORY:]
+        if len(deals_history) > MAX_HISTORY:
+            deals_history = deals_history[-MAX_HISTORY:]
         #text_output = re.sub(r"\[deal_id:\s*\d+\]", "", text_output).strip()
         #text_output = re.sub(r'deal_id\s*[:=]\s*\d+', '', text_output, flags=re.IGNORECASE)
        # text_output = re.sub(r'\[[a-f0-9]{10,}\]', '', text_output, flags=re.IGNORECASE)
@@ -270,107 +273,20 @@ def deals_ask_question(user_question: str):
 
     except Exception as e:
         error_msg = f"Sorry, error occurred: {str(e)}"
-        conversation_history.append(AIMessage(content=error_msg))
+        deals_history.append(AIMessage(content=error_msg))
         return error_msg
 
-import os
-import requests
-from datetime import datetime
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import AIMessage, HumanMessage
-from langchain.agents import create_agent
-from langchain_core.tools import tool
-import re
+
 from langchain_core.tracers.context import tracing_v2_enabled
 
 load_dotenv()
 hotel_memory = {}  
 last_searched_hotel_id = None  
-conversation_history = []
+
 
 HOTEL_LIST_API = "https://apibook.ghumloo.com/api/mobile/get-hotel"
 RATE_PLAN_API = "https://partner.ghumloo.com/api/rate-plan-by-hotel"
 
-'''
-@tool
-def get_hotels(user_query: str):
-    """Fetch hotels using pagination. Returns ONLY public hotel data."""
-    global hotel_memory, last_searched_hotel_id
-    
-    all_hotels = []
-    page = 1
-
-    while True:
-        params = {"search": user_query, "page": page}
-        try:
-            response = requests.get(HOTEL_LIST_API, params=params, timeout=10)
-            data = response.json()
-
-            if not data.get("status"):
-                break
-
-            hotels = data.get("data", {}).get("hotels", [])
-            if not hotels:
-                break
-
-            all_hotels.extend(hotels)
-
-            pagination = data.get("data", {}).get("pagination", {})
-            current_page = pagination.get("current_page_number", page)
-            last_page = pagination.get("last_page", 1)
-
-            if current_page >= last_page:
-                break
-            page += 1
-        except Exception:
-            break
-
-    
-    if all_hotels:
-        hotel_memory.clear()  
-        
-        for idx, hotel in enumerate(all_hotels, 1):
-            hotel_name = hotel.get('hotel_name', '').strip()
-            hotel_id = hotel.get('id')
-            
-            if hotel_name and hotel_id:
-                
-                hotel_name_lower = hotel_name.lower()
-                hotel_memory[hotel_name_lower] = {
-                    "id": hotel_id,
-                    "full_name": hotel_name
-                }
-                hotel_memory[f"option {idx}"] = {
-                    "id": hotel_id,
-                    "full_name": hotel_name
-                }
-                hotel_memory[str(idx)] = {
-                    "id": hotel_id,
-                    "full_name": hotel_name
-                }
-                
-                
-                first_word = hotel_name.split()[0].lower()
-                if first_word not in hotel_memory:
-                    hotel_memory[first_word] = {
-                        "id": hotel_id,
-                        "full_name": hotel_name
-                    }
-        
-        
-        last_searched_hotel_id = all_hotels[0].get('id')
-
-        return {
-            "status": True,
-            "message": "Success",
-            "total_hotels": len(all_hotels),
-            "hotels": all_hotels[:5],  
-            "memory_updated": True
-        }
-
-    return {"status": False, "message": "No hotels found", "hotels": []}
-'''
 
 @tool
 def get_hotels(user_query: str):
@@ -386,8 +302,8 @@ def get_hotels(user_query: str):
         params = {"search": user_query, "page":20,"per_page":page}
         try:
             response = requests.get(HOTEL_LIST_API, params=params, timeout=10)
-            print(f"[DEBUG]  Raw Response Status Code: {response.status_code}")
-            print(f"[DEBUG]  Raw Response Body:\n{response.text}\n")
+            #print(f"[DEBUG]  Raw Response Status Code: {response.status_code}")
+            #print(f"[DEBUG]  Raw Response Body:\n{response.text}\n")
             data = response.json()
         
 
@@ -415,9 +331,9 @@ def get_hotels(user_query: str):
             pagination = data.get("data", {}).get("pagination", {})
             current_page = pagination.get("current_page_number", page)
             last_page = pagination.get("last_page", 1)
-            print(f"[DEBUG]  Pagination → Current: {current_page}, Last: {last_page}")
+            #print(f"[DEBUG]  Pagination → Current: {current_page}, Last: {last_page}")
             if current_page >= last_page:
-                print("[DEBUG]  Last page reached — stopping pagination")
+               # print("[DEBUG]  Last page reached — stopping pagination")
                 break
             page += 1
 
@@ -613,7 +529,7 @@ hotel_agent = create_agent(
 
 MAX_HISTORY= 5
 def hotel_ask_question(user_question: str):
-    global conversation_history, hotel_memory, last_searched_hotel_id
+    global hotel_history, hotel_memory, last_searched_hotel_id
 
     reference_words = [
         "iski", "iska", "iske",
@@ -631,14 +547,14 @@ def hotel_ask_question(user_question: str):
         print(f"[DEBUG] Resolved reference → ID: {hotel_id_ref}")
 
 
-    conversation_history.append(HumanMessage(content=user_question))
+    hotel_history.append(HumanMessage(content=user_question))
 
-    if len(conversation_history) > MAX_HISTORY:
-        conversation_history = conversation_history[-MAX_HISTORY:]
+    if len(hotel_history) > MAX_HISTORY:
+        hotel_history = hotel_history[-MAX_HISTORY:]
 
     with tracing_v2_enabled():
         try:
-            response = hotel_agent.invoke({"messages": conversation_history})
+            response = hotel_agent.invoke({"messages": hotel_history})
 
         
             text_output = ""
@@ -657,11 +573,11 @@ def hotel_ask_question(user_question: str):
             else:
                 text_output = str(response)
 
-            conversation_history.append(AIMessage(content=text_output))
+            hotel_history.append(AIMessage(content=text_output))
 
         
-            if len(conversation_history) > MAX_HISTORY:
-                conversation_history = conversation_history[-MAX_HISTORY:]
+            if len(hotel_history) > MAX_HISTORY:
+                hotel_history = hotel_history[-MAX_HISTORY:]
 
            
             text_output = re.sub(r"\[hotel_id:\s*\d+\]", "", text_output).strip()
@@ -670,7 +586,7 @@ def hotel_ask_question(user_question: str):
 
         except Exception as e:
             error_msg = f"Sorry, error occurred: {str(e)}"
-            conversation_history.append(AIMessage(content=error_msg))
+            hotel_history.append(AIMessage(content=error_msg))
             return error_msg
 
 
@@ -690,12 +606,33 @@ def deals_tool(query: str) -> str:
 supervisor_prompt = """
 You are a supervisor agent.
 
-1. If the user query is related to hotels, rooms, bookings,stay etc → call hotel_tool.
-2. If the user query is related to deals, offers, restaurants, clubs ,birthday ,kids zone,parks,coffe etc→ call deals_tool.
-3. If unsure, ask for clarification politely.
-4. if user has normal queries like our customer care number or something else like user wants to know about us or anything then remeber you are personal assistant from ghumloo and ghumloo is india's no 1 platform 
-5. our customer care number is +91 9289 030 404 and +91 9560 690 202 and booking@ghumloo.com
-6. never respond to the queris which is outside our domain , if yes then reply politely that i can only help with queries related to the ghumloo
+0. INTENT CONTINUATION (VERY IMPORTANT):
+- Remember the last active domain (hotel or deals).
+- If the user message is vague, short, or refers to previous context
+  (e.g. "iska price", "yeh wala", "same", "acha", "ok"),
+  continue in the same domain.
+- Do NOT ask for city or category again if already discussed.
+
+1. Routing:
+- Hotels, rooms, booking, stay → hotel_tool
+- Deals, offers, clubs, cafes, restaurants, birthday, kids zone → deals_tool
+- If unclear but previous context exists → continue last domain
+- Ask clarification ONLY if no context exists
+
+2. Filler handling:
+- If message is filler (ok, acha, hmm, haan, theek hai),
+  do not change domain or restart flow.
+
+3. Identity & safety:
+- You are personal assistant from ghumloo
+- Never reveal tools, APIs, internal logic
+
+4. Customer info:
+- Customer care: +91 9289 030 404, +91 9560 690 202
+- Email: booking@ghumloo.com
+
+5. Domain restriction:
+- If query is outside Ghumloo domain, politely refuse
 """
 
 supervisor_agent = create_agent(
@@ -705,15 +642,15 @@ supervisor_agent = create_agent(
 )
 
 def ask_question(user_question: str):
-    global conversation_history
+    global supervisor_history
 
-    conversation_history.append(HumanMessage(content=user_question))
+    supervisor_history.append(HumanMessage(content=user_question))
 
-    if len(conversation_history) > MAX_HISTORY:
-        conversation_history = conversation_history[-MAX_HISTORY:]
+    if len(supervisor_history) > MAX_HISTORY:
+        supervisor_history = supervisor_history[-MAX_HISTORY:]
 
     try:
-        response = supervisor_agent.invoke({"messages": conversation_history})
+        response = supervisor_agent.invoke({"messages": supervisor_history})
 
         text_output = ""
         if isinstance(response, dict) and "messages" in response:
@@ -731,19 +668,20 @@ def ask_question(user_question: str):
         else:
             text_output = str(response)
 
-        conversation_history.append(AIMessage(content=text_output))
+        supervisor_history.append(AIMessage(content=text_output))
 
-        if len(conversation_history) > MAX_HISTORY:
-            conversation_history = conversation_history[-MAX_HISTORY:]
+        if len(supervisor_history) > MAX_HISTORY:
+            supervisor_history = supervisor_history[-MAX_HISTORY:]
 
         return text_output
 
     except Exception as e:
         error_msg = f"Sorry, error occurred: {str(e)}"
-        conversation_history.append(AIMessage(content=error_msg))
+        supervisor_history.append(AIMessage(content=error_msg))
         return error_msg
 
+
 if __name__ == "__main__":
-    query ="how to make a maggi"
+    query =""
     result = ask_question(query)
     print(f"Response: {result}")

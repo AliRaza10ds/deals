@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from model import ask_question, conversation_history 
+from model import ask_question
 
 app = Flask(__name__)
 
@@ -49,3 +49,4 @@ if __name__ == "__main__":
     else:
         print("🌍 Flask app starting on http://127.0.0.1:5000")
         app.run(debug=True, port=5000)
+
